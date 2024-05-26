@@ -8,10 +8,15 @@ public class mainCamera : MonoBehaviour
 
     public float mouseSensitivity = 5f; // 마우스 감도
     
+    public bool isLockOn = false; // 카메라가 적을 바라보는 중인지
+    
     float verticalRotation = 0; // 상하 회전 값
     float rotationSpeed = 3f; // 회전 속도
 
     public Vector3 offset; // 플레이어와의 상대적인 위치
+ 
+    private float lockOnRange = 8f; // 락온 범위
+    public GameObject currentTarget; // 현재 락온된 적
 
     void Start()
     {
@@ -21,9 +26,20 @@ public class mainCamera : MonoBehaviour
         offset = new Vector3(0, 1.9f, -1.5f); // 카메라 위치 설정
     }
 
-    void Update()
+    void LateUpdate()
     {
-        CameraRotation();
+        if (!isLockOn) {
+            CameraRotation();
+        }
+
+        else {
+            Lockon();
+        }
+
+        // q키를 눌러 락온
+        if (Input.GetKeyDown(KeyCode.Q)) {
+            FindClosestEnemy();
+        }
     }
 
     void CameraRotation() {
@@ -63,7 +79,62 @@ public class mainCamera : MonoBehaviour
         // 카메라 따라가기
         else if (currentOffset.x != clampedX || currentOffset.z != clampedZ) {
             Vector3 pos = new Vector3(clampedX, 1.9f, clampedZ);
-            transform.position = Vector3.Lerp(transform.position, pos + player.position, Time.deltaTime * 10f);
+            transform.position = Vector3.Lerp(transform.position, pos + player.position, Time.deltaTime * 3f);
+        }
+    }
+
+    // 락온
+    void FindClosestEnemy() {
+        // 락온 초기화
+        if (currentTarget != null) {
+            currentTarget.GetComponent<knight>().isLockOn = false;
+        }
+        
+        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
+        float closestDistance = lockOnRange;
+
+        foreach (GameObject enemy in enemies)
+        {
+            float distance = Vector3.Distance(transform.position, enemy.transform.position);
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                currentTarget = enemy;
+            }
+        }
+
+        if (currentTarget != null)
+        {
+            isLockOn = !isLockOn;
+            currentTarget.GetComponent<knight>().isLockOn = isLockOn;
+        }
+
+        else
+        {
+            currentTarget = null;
+            isLockOn = false;
+        }
+    }
+
+    void Lockon() {
+        // 적의 전방 벡터
+        Vector3 enemyForward = currentTarget.transform.forward;
+
+        // 적의 전방 벡터를 기준으로 플레이어의 뒤쪽 위치 계산
+        Vector3 cameraPosition = player.position + enemyForward * 2f;
+        cameraPosition.y = player.position.y + 1.9f;
+
+        // 카메라 위치 및 회전 설정
+        Vector3 smoothedPosition = Vector3.Lerp(transform.position, cameraPosition, 10f);
+        transform.position = smoothedPosition;
+
+        // 락온된 적을 바라보도록 회전
+        transform.LookAt(currentTarget.transform);
+
+        // 10m 이상 떨어지면 락온 해제
+        if (Vector3.Distance(transform.position, currentTarget.transform.position) > 15f) {
+            isLockOn = false;
+            currentTarget.GetComponent<knight>().isLockOn = false;
         }
     }
 }

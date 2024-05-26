@@ -9,8 +9,15 @@ public class player : MonoBehaviour
     private Rigidbody rb;
     private Animator animator;
     private bool isMove = false;
-    private bool isAttack = false;
+    private bool isMoveMotionSwitch = false;
+    private bool isGuardMoveMotionSwtich = false;
+    public bool isAttack = false;
+    public bool isAttackDamage = false;
+    private bool isGuard = false;
+    private bool isGuardStopMotionSwitch = false;
     private int attackAction = 0;
+    private float moveDuration = 0.1f;
+    private bool isBackMove = false;
 
     void Start()
     {
@@ -39,6 +46,19 @@ public class player : MonoBehaviour
 
     void Update() {
         isAttack = animator.GetBool("isAttack");
+
+        // 마우스 오른쪽 버튼이 클릭되면 가드
+        if (Input.GetMouseButton(1)) {
+            isGuard = true;
+        }
+
+        // 마우스 오른쪽 버튼이 떼지면 가드 해제
+        else {
+            isGuard = false;
+        }
+
+        animator.SetBool("isGuard", isGuard);
+        GuardStop();
     }
 
     void LateUpdate()
@@ -53,21 +73,24 @@ public class player : MonoBehaviour
 
     void Move()
     {
+        // 공격 중 액션불가
+        if (isAttack) {
+            return;
+        }
+
         float moveX = Input.GetAxis("Horizontal"); // A, D 키 또는 좌우 화살표 입력
         float moveZ = Input.GetAxis("Vertical");   // W, S 키 또는 상하 화살표 입력
 
         // 이동안할 시 애니메이션 변경
         if (moveX == 0 && moveZ == 0) {
-            MoveAnimate(false);        
+            MoveAni(false);
+            isBackMove = false;
+
             return;
         }
 
-        // 공격시 이동불가
-        if (isAttack) {
-            Debug.Log("");
-            return;
-        }
-        
+        float MoveSpeed = isGuard ? Speed / 3.5f : Speed;
+
         // 앞으로 이동
         if (moveZ > 0) {
             Quaternion playerRotation = Camera.main.transform.rotation;
@@ -77,14 +100,19 @@ public class player : MonoBehaviour
         }
         
         // 뒤쪽 키를 누르면 (반복작업되면 안됨)
-        if (Input.GetKeyDown(KeyCode.S)) {
+        if (moveZ < 0 && !isBackMove) {
             Quaternion playerRotation = Camera.main.transform.rotation;
 
             // 현재 플레이어의 Y축 회전값에 180도를 더한 후 회전
             transform.rotation = Quaternion.Euler(0f, playerRotation.eulerAngles.y + 180f, 0f);
+            isBackMove = true;
         }
 
-         // 왼쪽 키를 누르면
+        else if (!(moveZ < 0)) {
+            isBackMove = false;
+        }
+
+        // 왼쪽 키를 누르면
         if (moveX < 0)
         {
             // 현재 메인 카메라의 왼쪽 방향 벡터를 가져옴
@@ -106,31 +134,113 @@ public class player : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 10f);
         }
 
-        rb.MovePosition(transform.position + transform.forward * Speed * Time.deltaTime);
-        MoveAnimate(true);
+        rb.MovePosition(transform.position + transform.forward * MoveSpeed * Time.deltaTime);
+        
+        MoveAni(true);
+    }
+
+    void MoveAni(bool setMove) {
+        if (setMove) {
+            if (!isGuard) {
+                if (isMoveMotionSwitch) {
+                    return;
+                }
+
+                isMove = true;
+                animator.SetBool("isMove", true);
+                animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.deltaTime));
+                animator.CrossFade("Move", moveDuration / 2);
+
+                isGuardMoveMotionSwtich = false;
+                isMoveMotionSwitch = true;
+            }
+
+            else {
+                if (isGuardMoveMotionSwtich) {
+                    return;
+                }
+
+                isMove = true;
+                animator.SetBool("isMove", true);
+                animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.deltaTime));
+                animator.CrossFade("GuardMove", moveDuration / 2);
+                
+                isGuardMoveMotionSwtich = true;
+                isMoveMotionSwitch = false;
+            }
+        }
+
+        else {
+            if (!isGuard) {
+                if (!isMoveMotionSwitch) {
+                    return;
+                }
+
+                isMove = false;
+                animator.SetBool("isMove", false);
+                animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.deltaTime));
+                animator.CrossFade("Idle", moveDuration);
+
+                isGuardMoveMotionSwtich = false;
+                isMoveMotionSwitch = false;
+            }
+
+            else {
+                if (!isGuardMoveMotionSwtich) {
+                    return;
+                }
+
+                isMove = false;
+                if (!Input.GetMouseButton(1)) {
+                    animator.SetBool("isMove", false);
+                    animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.deltaTime));
+                    animator.CrossFade("Idle", moveDuration);
+                }
+
+                else {
+                    animator.SetBool("isMove", false);
+                    animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.deltaTime));
+                    animator.CrossFade("GuardStop", moveDuration / 2);
+
+                    isGuardStopMotionSwitch = true;
+                }
+                
+                isGuardMoveMotionSwtich = false;
+                isMoveMotionSwitch = false;
+            }
+        }
     }
     
-    void MoveAnimate(bool setMove)
-    {
-        if (setMove == isMove) {
+    void GuardStop() {
+        if (isMove || isAttack) {
             return;
         }
         
-        if (setMove == true) {
-            float moveDuration = 0.05f;
-            animator.SetBool("isMove", true);
+        if (isGuard) {
+            if (isGuardStopMotionSwitch) {
+                return;
+            }
+
+            animator.SetBool("isMove", false);
             animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.deltaTime));
-            animator.CrossFade("Move", moveDuration);
+            animator.CrossFade("GuardStop", moveDuration / 2);
+
+            isGuardStopMotionSwitch = true;
         }
-        
+
         else {
-            float moveDuration = 0.2f;
+            if (!isGuardStopMotionSwitch) {
+                return;
+            }
+            
             animator.SetBool("isMove", false);
             animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.deltaTime));
             animator.CrossFade("Idle", moveDuration);
+
+            isGuardStopMotionSwitch = false;
         }
 
-        isMove = setMove;
+        isBackMove = false;
     }
 
     void Attack() {
@@ -151,23 +261,29 @@ public class player : MonoBehaviour
             animator.CrossFade("Attack1", attackDuration);
             attackAction = 1;
             StartCoroutine(AttackMoveForwardCoroutine(0.6f, 0.3f));
+            StartCoroutine(AttackedCoroutine(1f, 0.4f));
         }
 
         else {
             animator.CrossFade("Attack2", attackDuration);
             attackAction = 0;
             StartCoroutine(AttackMoveForwardCoroutine(0.3f, 0.7f));
+            StartCoroutine(AttackedCoroutine(1f, 0.4f));
         }
+
+        // 기존 모션 스위치 모두 취소
+        isMoveMotionSwitch = false;
+        isGuardMoveMotionSwtich = false;
     }
 
     IEnumerator AttackMoveForwardCoroutine(float moveDuration, float delayDuration)
     {
         float elapsedTime = 0f;
 
-        // 0.2초 동안 대기
+        // N초 동안 대기
         yield return new WaitForSeconds(delayDuration);
 
-        // 0.3초 동안 이동
+        // N초 동안 이동
         while (elapsedTime < moveDuration)
         {
             // 이동할 거리 계산
@@ -182,5 +298,18 @@ public class player : MonoBehaviour
             // 다음 프레임까지 대기
             yield return null;
         }
+    }
+
+    IEnumerator AttackedCoroutine(float attackDuration, float delayDuration)
+    {   
+        isAttackDamage = false;
+
+        // N초 동안 대기
+        yield return new WaitForSeconds(delayDuration);
+        isAttackDamage = true;
+
+        // N초 동안 공격
+        yield return new WaitForSeconds(attackDuration);
+        isAttackDamage = false;
     }
 }
