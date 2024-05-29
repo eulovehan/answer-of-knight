@@ -6,7 +6,7 @@ using UnityEngine.UI;
 public class hpbar : MonoBehaviour
 {
     public GameObject parent;
-    private int totalHp = 0;
+    private float totalHp = 0f;
     private float scaleX; // 초기 전체 x값
 
     void Start() {

@@ -26,6 +26,13 @@ public class mainCamera : MonoBehaviour
         offset = new Vector3(0, 1.9f, -1.5f); // 카메라 위치 설정
     }
 
+    void Update() {
+        // 락온 유효성 체크
+        if (isLockOn && currentTarget != null) {
+            LockOnCheck();
+        }
+    }
+    
     void LateUpdate()
     {
         if (!isLockOn) {
@@ -50,8 +57,10 @@ public class mainCamera : MonoBehaviour
         // x축은 회전 방향에 따라 플레이어를 중심으로 카메라 회전
         transform.RotateAround(player.position, Vector3.up, mouseX * rotationSpeed);
 
-        // 플레이어를 바라보도록 회전
-        transform.LookAt(player);
+        // rotate.y 오차가 20이상이면 플레이어를 바라보도록 회전
+        if (Mathf.Abs(transform.rotation.eulerAngles.y - player.rotation.eulerAngles.y) > 20) {
+            transform.LookAt(player);
+        }
 
         // 카메라의 x축 회전을 고정
         Vector3 currentRotation = transform.localRotation.eulerAngles;
@@ -96,6 +105,13 @@ public class mainCamera : MonoBehaviour
         foreach (GameObject enemy in enemies)
         {
             float distance = Vector3.Distance(transform.position, enemy.transform.position);
+
+            // 적이 죽지않은 상태면
+            bool isDeath = enemy.GetComponent<knight>().isDeath;
+            if (isDeath) {
+                continue;
+            }
+
             if (distance < closestDistance)
             {
                 closestDistance = distance;
@@ -103,12 +119,14 @@ public class mainCamera : MonoBehaviour
             }
         }
 
+        // 적을 찾았으면 락온 전환
         if (currentTarget != null)
         {
             isLockOn = !isLockOn;
             currentTarget.GetComponent<knight>().isLockOn = isLockOn;
         }
-
+        
+        // 못찾았으면 안함
         else
         {
             currentTarget = null;
@@ -118,7 +136,7 @@ public class mainCamera : MonoBehaviour
 
     void Lockon() {
         // 적의 전방 벡터
-        Vector3 enemyForward = currentTarget.transform.forward;
+        Vector3 enemyForward = (player.position - currentTarget.transform.position).normalized;
 
         // 적의 전방 벡터를 기준으로 플레이어의 뒤쪽 위치 계산
         Vector3 cameraPosition = player.position + enemyForward * 2f;
@@ -129,12 +147,23 @@ public class mainCamera : MonoBehaviour
         transform.position = smoothedPosition;
 
         // 락온된 적을 바라보도록 회전
-        transform.LookAt(currentTarget.transform);
-
+        Vector3 targetPosition = currentTarget.transform.position;
+        targetPosition.y += 1; // offset 값을 원하시는 높이만큼 설정합니다.
+        transform.LookAt(targetPosition);
+        
         // 10m 이상 떨어지면 락온 해제
         if (Vector3.Distance(transform.position, currentTarget.transform.position) > 15f) {
             isLockOn = false;
             currentTarget.GetComponent<knight>().isLockOn = false;
+        }
+    }
+
+    void LockOnCheck() {
+        bool isDeath = currentTarget.GetComponent<knight>().isDeath;
+        if (isDeath) {
+            isLockOn = false;
+            currentTarget.GetComponent<knight>().isLockOn = false;
+            currentTarget = null;
         }
     }
 }

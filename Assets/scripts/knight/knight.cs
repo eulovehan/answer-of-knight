@@ -10,9 +10,12 @@ public class knight : MonoBehaviour
 
     public GameObject player; // 주인공 캐릭터의 Transform
     public float detectionRange = 10f; // 적이 플레이어를 감지하는 범위
+    public float attackRange = 1.3f; // 적의 공격 범위
     public float Speed = 5f; // 적의 이동 속도
-    public int hp = 100; // 적의 체력
+    public float hp = 100f; // 적의 체력
     public bool isLockOn = false; // 플레이거 적을 바라보는 중인지
+    public bool isDeath = false;
+    public float attackDamage = 15f;
 
     private bool findPlayer = false;
     private bool isMove = false;
@@ -20,8 +23,10 @@ public class knight : MonoBehaviour
     private float moveDuration = 0.1f;
     private bool isGuard = false;
     private bool isGuardMoveLeft = false;
-    private bool isAttackMotion = false;
     private bool isHit = false;
+    private bool isAttackMotion = false;
+    private bool isAttackDamage = false;
+    private bool isAttackFailed = false;
 
     // Start is called before the first frame update
     void Start()
@@ -59,22 +64,39 @@ public class knight : MonoBehaviour
     {
         isAttackMotion = animator.GetBool("isAttackMotion");
         isGuard = animator.GetBool("isGuard");
+        isDeath = animator.GetBool("isDeath");
+
+        if (isDeath || isAttackFailed) {
+            return;
+        }
 
         if (player != null) {
             findPlayer = true;
         }
 
+        if (hp <= 0) {
+            Death();
+        }
+
+        Attack();
+    }
+
+    void FixedUpdate() {
+        if (isDeath || isAttackFailed) {
+            return;
+        }
+        
         if (findPlayer) {
             MoveToPlayer();
         }
 
         // 가드시 양옆 이동
         if (isGuardMoveLeft && isGuard) {
-            transform.Translate(Vector3.left * (Speed / 40) * Time.deltaTime);
+            transform.Translate(Vector3.left * (Speed / 10) * Time.fixedDeltaTime);
         }
 
         else if (!isGuardMoveLeft && isGuard) {
-            transform.Translate(Vector3.right * (Speed / 40) * Time.deltaTime);
+            transform.Translate(Vector3.right * (Speed / 10) * Time.fixedDeltaTime);
         }
     }
 
@@ -87,19 +109,22 @@ public class knight : MonoBehaviour
         Transform PlayerTransform = player.transform;
         float distanceToPlayer = Vector3.Distance(transform.position, PlayerTransform.position);
 
+        Vector3 targetPosition = PlayerTransform.position;
+        targetPosition.y = transform.position.y; // 현재 위치의 y값으로 설정하여 y값을 무시
+
         // 포착거리이면서 사정거리밖일 경우 뛰어오기
         if (distanceToPlayer < detectionRange && distanceToPlayer > 3f)
         {
             Vector3 direction = (PlayerTransform.position - transform.position).normalized;
 
-            transform.LookAt(PlayerTransform);
-            rb.MovePosition(transform.position + direction * Speed * Time.deltaTime);
+            transform.LookAt(targetPosition);
+            rb.MovePosition(transform.position + direction * Speed * Time.fixedDeltaTime);
             MoveAni(true);
         }
 
         // 사정거리 안에 들어왔을 경우
         else if (distanceToPlayer <= 3f) {
-            transform.LookAt(PlayerTransform);
+            transform.LookAt(targetPosition);
             MoveAni(false);
             ActionChoice();
         }
@@ -112,7 +137,7 @@ public class knight : MonoBehaviour
             }
             
             animator.SetBool("isMove", true);
-            animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration / 4 * Time.deltaTime));
+            animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration / 4 * Time.fixedDeltaTime));
             animator.CrossFade("Move", moveDuration);
 
             isMoveMotionSwitch = true;
@@ -126,7 +151,7 @@ public class knight : MonoBehaviour
             }
 
             animator.SetBool("isMove", false);
-            animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration / 4 * Time.deltaTime));
+            animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration / 4 * Time.fixedDeltaTime));
             animator.CrossFade("Idle", moveDuration);
 
             isMoveMotionSwitch = false;
@@ -140,14 +165,15 @@ public class knight : MonoBehaviour
             return;
         }
 
-        float random = RandomFunction(0, 7);
+        float random = RandomFunction(0, 2);
+        Debug.Log(random);
         switch (random) {
-            case 1: {
+            case 0: {
                 Attack1();
                 break;
             }
 
-            case 2: {
+            case 1: {
                 Attack2();
                 break;
             }
@@ -166,7 +192,7 @@ public class knight : MonoBehaviour
 
     void Guard() {
         animator.SetBool("isGuard", true);
-        animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.deltaTime));
+        animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
         animator.CrossFade("ShieldStop", moveDuration);
 
         bool random = RandomFunction(0, 2) == 1 ? true : false;
@@ -184,17 +210,19 @@ public class knight : MonoBehaviour
     void Attack1() {
         animator.SetInteger("attack", 1);
         animator.SetBool("isAttackMotion", true);
-        animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.deltaTime));
+        animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
         animator.CrossFade("Attack1", moveDuration);
         StartCoroutine(AttackMoveForwardCoroutine(0.3f, 0.7f));
+        StartCoroutine(AttackedCoroutine(0.2f, 1f));
     }
 
     void Attack2() {
         animator.SetInteger("attack", 2);
         animator.SetBool("isAttackMotion", true);
-        animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.deltaTime));
+        animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
         animator.CrossFade("Attack2", moveDuration);
-        StartCoroutine(AttackMoveForwardCoroutine(0.3f, 0.2f));
+        StartCoroutine(AttackMoveForwardCoroutine(0.2f, 0.4f));
+        StartCoroutine(AttackedCoroutine(0.2f, 0.3f));
     }
 
     IEnumerator AttackMoveForwardCoroutine(float moveDuration, float delayDuration)
@@ -208,16 +236,16 @@ public class knight : MonoBehaviour
         while (elapsedTime < moveDuration)
         {
             // 이동할 거리 계산
-            float distance = Speed * Time.deltaTime;
+            float distance = Speed * Time.fixedDeltaTime;
 
             // 앞으로 이동
-            transform.Translate((Vector3.forward * distance) / 10);
+            transform.Translate((Vector3.forward * distance) / 2);
 
             // 경과 시간 업데이트
-            elapsedTime += Time.deltaTime;
+            elapsedTime += Time.fixedDeltaTime;
 
             // 다음 프레임까지 대기
-            yield return null;
+            yield return new WaitForFixedUpdate();
         }
     }
 
@@ -227,31 +255,88 @@ public class knight : MonoBehaviour
         animator.SetBool("isGuard", false);
     }
 
-    public void Hit(int damage) {
+    public void Hit(float damage) {
         if (isHit) {
             return;
         }
 
-        isHit = true;
-        StartCoroutine(HitWait(2f));
+        if (hp <= 0) {
+            return;
+        }
+        
+        StartCoroutine(HitWait(1.5f));
         
         if (isGuard) {
-            Debug.Log("guard success");
             return;
         }
 
         Debug.Log("attack success");
         
         animator.SetBool("isHit", true);
-        animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.deltaTime));
+        animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
         animator.CrossFade("Hit", 0.01f);
 
         hp -= damage;
     }
 
+    public void Death() {
+        animator.SetBool("isDeath", true);
+        animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
+        animator.CrossFade("Death", 1f);
+    }
+
+    public void Attack() {
+        if (!isAttackDamage) {
+            return;
+        }
+        
+        RaycastHit hit;
+        Vector3 forward = transform.TransformDirection(Vector3.forward);
+
+        if (!Physics.Raycast(transform.position, forward, out hit, detectionRange)) {
+            return;
+        }
+
+        if (hit.collider.CompareTag("Player"))
+        {
+            AttackResult result = hit.collider.GetComponent<player>().Hit(attackDamage);
+
+            // // 상대방이 가드를 성공하면 딜레이 발생
+            // if (result == AttackResult.Guard) {
+            //     animator.SetBool("isAttackFailed", true);
+            //     animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
+            //     animator.CrossFade("AttackFailed", 0.01f);
+            //     StartCoroutine(AttackFailedWait(0.8f));
+            // }
+        }
+    }
+
     IEnumerator HitWait(float waitDuration)
     {
+        isHit = true;
+
         yield return new WaitForSeconds(waitDuration);
         isHit = false;
+    }
+
+    IEnumerator AttackFailedWait(float waitDuration)
+    {
+        isAttackFailed = true;
+
+        yield return new WaitForSeconds(waitDuration);
+        isAttackFailed = false;
+    }
+
+    IEnumerator AttackedCoroutine(float attackDuration, float delayDuration)
+    {   
+        isAttackDamage = false;
+
+        // N초 동안 대기
+        yield return new WaitForSeconds(delayDuration);
+        isAttackDamage = true;
+
+        // N초 동안 공격
+        yield return new WaitForSeconds(attackDuration);
+        isAttackDamage = false;
     }
 }

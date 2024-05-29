@@ -5,7 +5,7 @@ using UnityEngine;
 public class sword : MonoBehaviour
 {
     public GameObject player;
-    public int damage = 15;
+    public float weaponDamage = 15f;
     private List<GameObject> collidedObjects = new List<GameObject>();
 
 
@@ -22,7 +22,11 @@ public class sword : MonoBehaviour
             return;
         }
 
+        // 대미지 주기
         if (collidedObject.CompareTag("Enemy")) {
+            // 플레이어의 파워 배율 적용
+            float damage = player.GetComponent<player>().attackPower * weaponDamage;
+            
             collidedObject.GetComponent<knight>().Hit(damage);
             collidedObjects.Add(collidedObject);
             StartCoroutine(AttackWaitCoroutine(1f, collidedObject));
