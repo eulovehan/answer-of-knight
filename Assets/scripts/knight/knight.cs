@@ -30,6 +30,8 @@ public class knight : MonoBehaviour
     private bool isAttackFailed = false;
     private AudioSource audioSource1;
     private AudioSource audioSource2;
+    private ParticleSystem guardEffect; // 가드 이펙트
+    private ParticleSystem hitEffect; // 피격 이펙트
 
     // Start is called before the first frame update
     void Start()
@@ -71,6 +73,19 @@ public class knight : MonoBehaviour
         if (audioSource2 == null)
         {
             Debug.LogError("AudioSource component missing from this game object. Please add one.");
+        }
+
+        // 이펙트 모체
+        GameObject[] findEffect = GameObject.FindGameObjectsWithTag("guardParticle");
+        foreach (GameObject effect in findEffect)
+        {
+            guardEffect = effect.GetComponent<ParticleSystem>();
+        }
+
+        GameObject[] findHitEffect = GameObject.FindGameObjectsWithTag("hitParticle");
+        foreach (GameObject effect in findHitEffect)
+        {
+            hitEffect = effect.GetComponent<ParticleSystem>();
         }
     }
 
@@ -286,6 +301,11 @@ public class knight : MonoBehaviour
             audioSource2.pitch = 0.7f;
             audioSource2.clip = audioClips[0];
             audioSource2.Play();
+
+            // 가드 이펙트
+            ParticleSystem instantiatedEffect = Instantiate(guardEffect, transform.position + new Vector3(0, 1.5f, 0), Quaternion.identity);
+            instantiatedEffect.Play();
+            Destroy(instantiatedEffect.gameObject, 1f); // 적절한 시간 후에 파티클 시스템 삭제
             
             return;
         }
@@ -303,6 +323,11 @@ public class knight : MonoBehaviour
             audioSource1.clip = audioClips[2];
             audioSource1.Play();
         }
+
+        // 피격 이펙트
+        ParticleSystem instantiatedHitEffect = Instantiate(hitEffect, transform.position + new Vector3(0, 1.5f, 0), Quaternion.identity);
+        instantiatedHitEffect.Play();
+        Destroy(instantiatedHitEffect.gameObject, 1f); // 적절한 시간 후에 파티클 시스템 삭제
         
         animator.SetBool("isHit", true);
         animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));

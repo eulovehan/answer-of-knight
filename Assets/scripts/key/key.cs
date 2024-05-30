@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class key : MonoBehaviour
 {
+    private GameObject sideTextUI; // side 텍스트 UI
+
     void Start()
     {
         // Rigidbody를 가져옵니다.
@@ -29,6 +31,13 @@ public class key : MonoBehaviour
 
         // Rigidbody의 Kinematic을 비활성화하여 중력이 적용되도록 합니다.
         rb.isKinematic = false;
+
+        // text ui set
+        GameObject[] findUI = GameObject.FindGameObjectsWithTag("sideTextUI");
+        foreach (GameObject ui in findUI)
+        {
+            sideTextUI = ui;
+        }
     }
     
     // 충돌이 시작될 때 호출되는 메서드
@@ -40,11 +49,7 @@ public class key : MonoBehaviour
             Destroy(gameObject); // 충돌한 물체 파괴
 
             // 열쇠 획득 메시지
-            GameObject[] findText = GameObject.FindGameObjectsWithTag("textUI");
-            foreach (GameObject textUI in findText)
-            {
-                textUI.GetComponent<text>().TextView("성문의 열쇠 X1", 1.5f);
-            }
+            sideTextUI.GetComponent<text>().TextView("성문의 열쇠 X1", 1.5f);
         }
     }
 }

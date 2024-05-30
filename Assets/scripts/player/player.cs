@@ -26,6 +26,8 @@ public class player : MonoBehaviour
     private bool isHit = false;
     private AudioSource audioSource1;
     private AudioSource audioSource2;
+    private ParticleSystem guardEffect; // 가드 이펙트
+    private ParticleSystem hitEffect; // 히트 이펙트
 
     void Start()
     {
@@ -61,6 +63,19 @@ public class player : MonoBehaviour
         if (audioSource2 == null)
         {
             Debug.LogError("AudioSource component missing from this game object. Please add one.");
+        }
+
+        // 이펙트 모체
+        GameObject[] findEffect = GameObject.FindGameObjectsWithTag("guardParticle");
+        foreach (GameObject effect in findEffect)
+        {
+            guardEffect = effect.GetComponent<ParticleSystem>();
+        }
+
+        GameObject[] findHitEffect = GameObject.FindGameObjectsWithTag("hitParticle");
+        foreach (GameObject effect in findHitEffect)
+        {
+            hitEffect = effect.GetComponent<ParticleSystem>();
         }
     }
 
@@ -347,9 +362,9 @@ public class player : MonoBehaviour
             attackAction = 0;
             StartCoroutine(AttackMoveForwardCoroutine(0.8f, 0.3f));
             StartCoroutine(AttackJumpForwardCoroutine(0.6f, 0.4f, 1.5f, 600f));
-            StartCoroutine(AttackedCoroutine(1.5f, 0.1f, 1.5f));
+            StartCoroutine(AttackedCoroutine(1f, 0.6f, 1.5f));
             StartCoroutine(AttackedSoundCoroutine(0.1f, 0.48f));
-            StartCoroutine(AttackedSoundCoroutine(0.7f, 0.38f));
+            StartCoroutine(AttackedSoundCoroutine(0.7f, 0.42f));
         }
 
         // 기존 모션 스위치 모두 취소
@@ -469,6 +484,11 @@ public class player : MonoBehaviour
             audioSource2.clip = audioClips[2];
             audioSource2.Play();
 
+            // 가드 이펙트
+            ParticleSystem instantiatedEffect = Instantiate(guardEffect, transform.position + new Vector3(0, 1.5f, 0), Quaternion.identity);
+            instantiatedEffect.Play();
+            Destroy(instantiatedEffect.gameObject, 1f); // 적절한 시간 후에 파티클 시스템 삭제
+
             return AttackResult.Guard;
         }
 
@@ -481,6 +501,11 @@ public class player : MonoBehaviour
         animator.SetBool("isHit", true);
         animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
         animator.CrossFade("Hit", 0);
+
+        // 히트 이펙트
+        ParticleSystem instantiatedHitEffect = Instantiate(hitEffect, transform.position + new Vector3(0, 1.5f, 0), Quaternion.identity);
+        instantiatedHitEffect.Play();
+        Destroy(instantiatedHitEffect.gameObject, 1f); // 적절한 시간 후에 파티클 시스템 삭제
 
         hp -= damege;
 

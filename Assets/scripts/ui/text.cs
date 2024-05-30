@@ -8,16 +8,46 @@ public class text : MonoBehaviour
 {
     public Image imageUI;  // 점점 흐려질 이미지
     public TextMeshProUGUI textUI;  // 점점 흐려질 텍스트
+    public bool isFix = false;  // 텍스트 고정 여부
+    public bool isFadeOut = false;  // 텍스트 페이드 강제 설정 여부
 
     private float defaultAlpha = 174f;  // 이미지의 기본 알파값
 
-    // 텍스트 실행
+    void Update()
+    {
+        // 고정 픽스 상태에서 픽스 상태가 종료되면 텍스트를 페이드아웃
+        if (isFix && isFadeOut)
+        {
+            isFix = false;
+            isFadeOut = false;
+            StartCoroutine(FadeOut());
+        }
+    }
+
+    // 1회성 텍스트 실행
     public void TextView(string text = "", float delayDuration = 6f, float fadeDuration = 1.0f)
     {
+        isFadeOut = false;
         textUI.text = text;
         StartCoroutine(StartFadeAfterDelay(delayDuration, fadeDuration));
     }
-        
+
+    // 고정 텍스트 실행
+    public void TextViewFix(string text = "")
+    {
+        textUI.text = text;
+        isFix = true;
+        isFadeOut = false;
+        StartCoroutine(FadeIn());
+    }
+
+    // 고정 텍스트 종료
+    public void TextViewFixEnd()
+    {
+        isFix = true;
+        isFadeOut = true;
+    }
+
     // 지연시간
     IEnumerator StartFadeAfterDelay(float delayDuration = 6f, float fadeDuration = 1.0f)
     {

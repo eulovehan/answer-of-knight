@@ -9,6 +9,9 @@ TagManager:
   - key2
   - system
   - textUI
+  - sideTextUI
+  - guardParticle
+  - hitParticle
   layers:
   - Default
   - TransparentFX
