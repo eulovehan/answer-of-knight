@@ -37,10 +37,14 @@ public class key : MonoBehaviour
         // 충돌한 물체의 태그가 "Player"인지 확인
         if (collision.gameObject.CompareTag("Player"))
         {
-            // 플레이어와 충돌했을 때 수행할 작업
-            Debug.Log("Player와 충돌했습니다!");
-
             Destroy(gameObject); // 충돌한 물체 파괴
+
+            // 열쇠 획득 메시지
+            GameObject[] findText = GameObject.FindGameObjectsWithTag("textUI");
+            foreach (GameObject textUI in findText)
+            {
+                textUI.GetComponent<text>().TextView("성문의 열쇠 X1", 1.5f);
+            }
         }
     }
 }

@@ -48,3 +48,15 @@ https://www.mixamo.com/#/?page=2&query=sword
 
 아저씨
 https://assetstore.unity.com/packages/3d/characters/humanoids/fantasy/warrior-3-180877
+
+폰트
+https://fonts.google.com/selection?subset=korean
+
+검,걷기 효과음
+https://soundeffect-lab.info/sound/search.php?s=%E5%89%A3
+
+피격1 효과음
+https://sellbuymusic.com/md/svvcwbf-pchzznt
+
+피격2 효과음
+https://sellbuymusic.com/md/spycwwh-qchzznt

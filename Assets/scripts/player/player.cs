@@ -10,6 +10,7 @@ public class player : MonoBehaviour
     public bool isGuard = false;
     public float totalHp = 200f; // 전체 체력
     public float hp = 200f; // 체력
+    public AudioClip[] audioClips; // 여러 개의 오디오 클립 배열
 
     private Rigidbody rb;
     private Animator animator;
@@ -23,6 +24,8 @@ public class player : MonoBehaviour
     private float moveDuration = 0.1f;
     private bool isBackMove = false;
     private bool isHit = false;
+    private AudioSource audioSource1;
+    private AudioSource audioSource2;
 
     void Start()
     {
@@ -47,6 +50,18 @@ public class player : MonoBehaviour
 
         // Y축 회전을 고정하여 캐릭터가 넘어지지 않게 함
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+
+        audioSource1 = GetComponent<AudioSource>();
+        if (audioSource1 == null)
+        {
+            Debug.LogError("AudioSource component missing from this game object. Please add one.");
+        }
+
+        audioSource2 = gameObject.AddComponent<AudioSource>();
+        if (audioSource2 == null)
+        {
+            Debug.LogError("AudioSource component missing from this game object. Please add one.");
+        }
     }
 
     void Update() {
@@ -100,7 +115,7 @@ public class player : MonoBehaviour
         if (isAttack || isHit) {
             return;
         }
-
+        
         float moveX = Input.GetAxis("Horizontal"); // A, D 키 또는 좌우 화살표 입력
         float moveZ = Input.GetAxis("Vertical");   // W, S 키 또는 상하 화살표 입력
 
@@ -164,6 +179,8 @@ public class player : MonoBehaviour
 
     void MoveAni(bool setMove) {
         if (setMove) {
+            float soundPitch = 1f;
+            
             if (!isGuard) {
                 if (isMoveMotionSwitch) {
                     return;
@@ -173,6 +190,8 @@ public class player : MonoBehaviour
                 animator.SetBool("isMove", true);
                 animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
                 animator.CrossFade("Move", moveDuration / 2);
+
+                soundPitch = 0.9f;
 
                 isGuardMoveMotionSwtich = false;
                 isMoveMotionSwitch = true;
@@ -187,10 +206,19 @@ public class player : MonoBehaviour
                 animator.SetBool("isMove", true);
                 animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
                 animator.CrossFade("GuardMove", moveDuration / 2);
+
+                // 오디오 재생 속도 조절
+                soundPitch = soundPitch / 2.2f;
                 
                 isGuardMoveMotionSwtich = true;
                 isMoveMotionSwitch = false;
             }
+
+            // 오디오 재생
+            audioSource1.loop = true;
+            audioSource1.pitch = soundPitch;
+            audioSource1.clip = audioClips[0];
+            audioSource1.Play();
         }
 
         else {
@@ -230,6 +258,12 @@ public class player : MonoBehaviour
                 
                 isGuardMoveMotionSwtich = false;
                 isMoveMotionSwitch = false;
+            }
+
+            // 이동 중이 아니면 오디오 중지
+            if (audioSource1.isPlaying) {
+                audioSource1.loop = false;
+                audioSource1.Stop();
             }
         }
     }
@@ -271,6 +305,17 @@ public class player : MonoBehaviour
             return;
         }
         
+        // 기존 소리 제거
+        if (audioSource1.isPlaying) {
+            audioSource1.loop = false;
+            audioSource1.Stop();
+        }
+
+        if (audioSource2.isPlaying) {
+            audioSource2.loop = false;
+            audioSource2.Stop();
+        }
+        
         float attackDuration = 0.05f;
         
         isMove = false;
@@ -284,22 +329,27 @@ public class player : MonoBehaviour
             animator.CrossFade("Attack1", attackDuration);
             attackAction = 1;
             StartCoroutine(AttackMoveForwardCoroutine(0.4f, 0.1f));
-            StartCoroutine(AttackedCoroutine(0.7f, 0.2f, 1));
+            StartCoroutine(AttackedCoroutine(0.7f, 0.05f, 1));
+            StartCoroutine(AttackedSoundCoroutine(0.1f, 0.5f));
         }
 
         else if (attackAction == 1) {
             animator.CrossFade("Attack2", attackDuration);
             attackAction = 2;
             StartCoroutine(AttackMoveForwardCoroutine(0.6f, 0.3f, 3f));
-            StartCoroutine(AttackedCoroutine(1f, 0.4f, 1));
+            StartCoroutine(AttackedCoroutine(1.2f, 0.1f, 1));
+            StartCoroutine(AttackedSoundCoroutine(0.1f, 0.48f));
+            StartCoroutine(AttackedSoundCoroutine(0.65f, 0.45f));
         }
         
         else {
             animator.CrossFade("Attack3", attackDuration);
             attackAction = 0;
             StartCoroutine(AttackMoveForwardCoroutine(0.8f, 0.3f));
-            StartCoroutine(AttackJumpForwardCoroutine(0.6f, 0.4f, 1.5f));
-            StartCoroutine(AttackedCoroutine(1.5f, 0.4f, 1.5f));
+            StartCoroutine(AttackJumpForwardCoroutine(0.6f, 0.4f, 1.5f, 600f));
+            StartCoroutine(AttackedCoroutine(1.5f, 0.1f, 1.5f));
+            StartCoroutine(AttackedSoundCoroutine(0.1f, 0.48f));
+            StartCoroutine(AttackedSoundCoroutine(0.7f, 0.38f));
         }
 
         // 기존 모션 스위치 모두 취소
@@ -331,7 +381,7 @@ public class player : MonoBehaviour
         }
     }
 
-    IEnumerator AttackJumpForwardCoroutine(float moveDuration, float delayDuration, float slow = 2f)
+    IEnumerator AttackJumpForwardCoroutine(float moveDuration, float delayDuration, float slow = 2f, float rotate = 0f)
     {
         float elapsedTime = 0f;
 
@@ -346,6 +396,11 @@ public class player : MonoBehaviour
 
             // 위로 점프
             transform.Translate((Vector3.up * distance) / slow);
+
+            // 회전 주기
+            if (rotate != 0f) {
+                transform.Rotate(Vector3.up * rotate * Time.fixedDeltaTime);
+            }
 
             // 경과 시간 업데이트
             elapsedTime += Time.fixedDeltaTime;
@@ -363,7 +418,11 @@ public class player : MonoBehaviour
 
         // N초 동안 대기
         yield return new WaitForSeconds(delayDuration);
-        isAttackDamage = true;
+        
+        // 맞는중엔 공격안함
+        if (!isHit) {
+            isAttackDamage = true;
+        }
 
         // N초 동안 공격
         yield return new WaitForSeconds(attackDuration);
@@ -372,18 +431,53 @@ public class player : MonoBehaviour
         attackPower = 1f;
     }
 
+    IEnumerator AttackedSoundCoroutine(float delayDuration, float audioPitch = 0.5f)
+    {  
+        // N초 동안 대기
+        yield return new WaitForSeconds(delayDuration);
+        
+        // 맞는중엔 공격안함
+        if (!isHit) {
+            // 검음 출력
+            if (!audioSource1.isPlaying) {
+                audioSource1.loop = false;
+                audioSource1.pitch = audioPitch;
+                audioSource1.clip = audioClips[1];
+                audioSource1.Play();
+            }
+
+            else {
+                audioSource2.loop = false;
+                audioSource2.pitch = audioPitch;
+                audioSource2.clip = audioClips[1];
+                audioSource2.Play();
+            }
+        }
+    }
+
     public AttackResult Hit(float damege) {
         if (isHit) {
             return AttackResult.Wait;
         }
         
         if (isGuard) {
-            Debug.Log("가드 성공!");
             StartCoroutine(HitWait(0.4f));
+
+            // 가드음
+            audioSource1.loop = false;
+            audioSource2.pitch = 0.8f;
+            audioSource2.clip = audioClips[2];
+            audioSource2.Play();
+
             return AttackResult.Guard;
         }
 
-        Debug.Log("맞음! : " + damege);
+        // 효과음
+        audioSource1.loop = false;
+        audioSource1.pitch = 1f;
+        audioSource1.clip = audioClips[3];
+        audioSource1.Play();
+
         animator.SetBool("isHit", true);
         animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
         animator.CrossFade("Hit", 0);

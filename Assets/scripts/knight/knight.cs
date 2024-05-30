@@ -16,6 +16,8 @@ public class knight : MonoBehaviour
     public bool isLockOn = false; // 플레이거 적을 바라보는 중인지
     public bool isDeath = false;
     public float attackDamage = 15f;
+    public bool isAttackDamage = false;
+    public AudioClip[] audioClips; // 여러 개의 오디오 클립 배열
 
     private bool findPlayer = false;
     private bool isMove = false;
@@ -25,8 +27,9 @@ public class knight : MonoBehaviour
     private bool isGuardMoveLeft = false;
     private bool isHit = false;
     private bool isAttackMotion = false;
-    private bool isAttackDamage = false;
     private bool isAttackFailed = false;
+    private AudioSource audioSource1;
+    private AudioSource audioSource2;
 
     // Start is called before the first frame update
     void Start()
@@ -57,6 +60,18 @@ public class knight : MonoBehaviour
         
         // Y축 회전을 고정하여 캐릭터가 넘어지지 않게 함
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+
+        audioSource1 = GetComponent<AudioSource>();
+        if (audioSource1 == null)
+        {
+            Debug.LogError("AudioSource component missing from this game object. Please add one.");
+        }
+
+        audioSource2 = gameObject.AddComponent<AudioSource>();
+        if (audioSource2 == null)
+        {
+            Debug.LogError("AudioSource component missing from this game object. Please add one.");
+        }
     }
 
     // Update is called once per frame
@@ -165,8 +180,7 @@ public class knight : MonoBehaviour
             return;
         }
 
-        float random = RandomFunction(0, 2);
-        Debug.Log(random);
+        float random = RandomFunction(0, 4);
         switch (random) {
             case 0: {
                 Attack1();
@@ -213,7 +227,7 @@ public class knight : MonoBehaviour
         animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
         animator.CrossFade("Attack1", moveDuration);
         StartCoroutine(AttackMoveForwardCoroutine(0.3f, 0.7f));
-        StartCoroutine(AttackedCoroutine(0.2f, 1f));
+        StartCoroutine(AttackedCoroutine(0.3f, 0.6f));
     }
 
     void Attack2() {
@@ -264,13 +278,31 @@ public class knight : MonoBehaviour
             return;
         }
         
-        StartCoroutine(HitWait(1.5f));
+        StartCoroutine(HitWait(0.4f));
         
+        // 막음
         if (isGuard) {
+            // 가드음
+            audioSource2.pitch = 0.7f;
+            audioSource2.clip = audioClips[0];
+            audioSource2.Play();
+            
             return;
         }
 
-        Debug.Log("attack success");
+        // 피격음
+        bool random = RandomFunction(0, 2) == 1 ? true : false;
+        if (random) {
+            audioSource1.pitch = 0.7f;
+            audioSource1.clip = audioClips[1];
+            audioSource1.Play();
+        }
+
+        else {
+            audioSource1.pitch = 0.8f;
+            audioSource1.clip = audioClips[2];
+            audioSource1.Play();
+        }
         
         animator.SetBool("isHit", true);
         animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
@@ -283,6 +315,12 @@ public class knight : MonoBehaviour
         animator.SetBool("isDeath", true);
         animator.SetLayerWeight(0, Mathf.Lerp(animator.GetLayerWeight(0), 0, moveDuration * Time.fixedDeltaTime));
         animator.CrossFade("Death", 1f);
+
+        // GameObject[] findText = GameObject.FindGameObjectsWithTag("textUI");
+        // foreach (GameObject textUI in findText)
+        // {
+        //     textUI.GetComponent<text>().TextView("적이 쓰러졌습니다.");
+        // }
     }
 
     public void Attack() {
@@ -333,7 +371,11 @@ public class knight : MonoBehaviour
 
         // N초 동안 대기
         yield return new WaitForSeconds(delayDuration);
-        isAttackDamage = true;
+
+        // 맞는중엔 공격안함
+        if (!isHit) {
+            isAttackDamage = true;
+        }
 
         // N초 동안 공격
         yield return new WaitForSeconds(attackDuration);
