@@ -11,6 +11,7 @@ public class player : MonoBehaviour
     public float totalHp = 200f; // 전체 체력
     public float hp = 200f; // 체력
     public AudioClip[] audioClips; // 여러 개의 오디오 클립 배열
+    public bool isStop = true; // 정지 상태
 
     private Rigidbody rb;
     private Animator animator;
@@ -28,6 +29,7 @@ public class player : MonoBehaviour
     private AudioSource audioSource2;
     private ParticleSystem guardEffect; // 가드 이펙트
     private ParticleSystem hitEffect; // 히트 이펙트
+    private GameObject textUI; // 텍스트 UI
 
     void Start()
     {
@@ -77,6 +79,15 @@ public class player : MonoBehaviour
         {
             hitEffect = effect.GetComponent<ParticleSystem>();
         }
+
+        // 텍스트 UI
+        GameObject[] findUI = GameObject.FindGameObjectsWithTag("textUI");
+        foreach (GameObject ui in findUI)
+        {
+            textUI = ui;
+        }
+        
+        StartCoroutine(Openning());
     }
 
     void Update() {
@@ -187,13 +198,15 @@ public class player : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * 10f);
         }
 
-        rb.MovePosition(transform.position + transform.forward * MoveSpeed * Time.fixedDeltaTime);
+        if (!isStop) {
+            rb.MovePosition(transform.position + transform.forward * MoveSpeed * Time.fixedDeltaTime);
+        }
         
         MoveAni(true);
     }
 
     void MoveAni(bool setMove) {
-        if (setMove) {
+        if (setMove && !isStop) {
             float soundPitch = 1f;
             
             if (!isGuard) {
@@ -316,7 +329,7 @@ public class player : MonoBehaviour
     }
 
     void Attack() {
-        if (isAttack || isHit) {
+        if (isAttack || isHit || isStop) {
             return;
         }
         
@@ -345,26 +358,26 @@ public class player : MonoBehaviour
             attackAction = 1;
             StartCoroutine(AttackMoveForwardCoroutine(0.4f, 0.1f));
             StartCoroutine(AttackedCoroutine(0.7f, 0.05f, 1));
-            StartCoroutine(AttackedSoundCoroutine(0.1f, 0.5f));
+            StartCoroutine(AttackedSoundCoroutine(0.1f, 0.6f));
         }
 
         else if (attackAction == 1) {
             animator.CrossFade("Attack2", attackDuration);
             attackAction = 2;
             StartCoroutine(AttackMoveForwardCoroutine(0.6f, 0.3f, 3f));
-            StartCoroutine(AttackedCoroutine(1.2f, 0.1f, 1));
-            StartCoroutine(AttackedSoundCoroutine(0.1f, 0.48f));
-            StartCoroutine(AttackedSoundCoroutine(0.65f, 0.45f));
+            StartCoroutine(AttackedCoroutine(0.4f, 0.1f, 1, false));
+            StartCoroutine(AttackedSoundCoroutine(0.1f, 0.58f));
+            StartCoroutine(AttackedCoroutine(0.4f, 0.65f, 1));
+            StartCoroutine(AttackedSoundCoroutine(0.65f, 0.55f));
         }
         
         else {
             animator.CrossFade("Attack3", attackDuration);
             attackAction = 0;
-            StartCoroutine(AttackMoveForwardCoroutine(0.8f, 0.3f));
-            StartCoroutine(AttackJumpForwardCoroutine(0.6f, 0.4f, 1.5f, 600f));
-            StartCoroutine(AttackedCoroutine(1f, 0.6f, 1.5f));
-            StartCoroutine(AttackedSoundCoroutine(0.1f, 0.48f));
-            StartCoroutine(AttackedSoundCoroutine(0.7f, 0.42f));
+            StartCoroutine(AttackMoveForwardCoroutine(0.6f, 0.55f));
+            StartCoroutine(AttackRotateForwardCoroutine(0.6f, 0.4f, 1.5f, 600f));
+            StartCoroutine(AttackedCoroutine(0.5f, 0.55f, 1.5f));
+            StartCoroutine(AttackedSoundCoroutine(0.55f, 0.52f));
         }
 
         // 기존 모션 스위치 모두 취소
@@ -396,7 +409,7 @@ public class player : MonoBehaviour
         }
     }
 
-    IEnumerator AttackJumpForwardCoroutine(float moveDuration, float delayDuration, float slow = 2f, float rotate = 0f)
+    IEnumerator AttackRotateForwardCoroutine(float moveDuration, float delayDuration, float slow = 2f, float rotate = 0f)
     {
         float elapsedTime = 0f;
 
@@ -408,9 +421,6 @@ public class player : MonoBehaviour
         {
             // 이동할 거리 계산
             float distance = Speed * Time.fixedDeltaTime;
-
-            // 위로 점프
-            transform.Translate((Vector3.up * distance) / slow);
 
             // 회전 주기
             if (rotate != 0f) {
@@ -425,7 +435,7 @@ public class player : MonoBehaviour
         }
     }
 
-    IEnumerator AttackedCoroutine(float attackDuration, float delayDuration, float power)
+    IEnumerator AttackedCoroutine(float attackDuration, float delayDuration, float power, bool isAttackReturn = true)
     {   
         isAttackDamage = false;
         isAttack = true;
@@ -442,7 +452,12 @@ public class player : MonoBehaviour
         // N초 동안 공격
         yield return new WaitForSeconds(attackDuration);
         isAttackDamage = false;
-        isAttack = false;
+        
+        // 리턴받을지에 대한여부 (연속 공격 등 제어)
+        if (isAttackReturn) {
+            isAttack = false;
+        }
+
         attackPower = 1f;
     }
 
@@ -519,5 +534,11 @@ public class player : MonoBehaviour
 
         yield return new WaitForSeconds(waitDuration);
         isHit = false;
+    }
+
+    IEnumerator Openning()
+    {
+        yield return new WaitForSeconds(1f);
+        isStop = false;
     }
 }
